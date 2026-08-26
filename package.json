@@ -12,7 +12,6 @@
     "vite": "^8.2.2"
   },
   "dependencies": {
-    "@rolldown/binding-win32-x64-msvc": "^1.2.5",
     "phaser": "^4.2.1"
   }
 }
