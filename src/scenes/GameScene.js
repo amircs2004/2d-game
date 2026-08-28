@@ -3,60 +3,100 @@ import { CONFIG } from '../config/gameConfig';
 import { createCharacterAnimations } from '../utils/animationHelper';
 import Player from '../entities/Player';
 import Enemy from '../entities/Enemy';
+import Ally from '../entities/ally';
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
     super('GameScene');
   }
-
+  
   preload() {
     const assets = ['idle', 'walk', 'run', 'jump', 'attack1', 'attack2', 'attack3', 'shield', 'hurt', 'dead'];
+    
+    // Load Player & Enemy assets
     assets.forEach(asset => {
       const fileName = asset === 'attack1' ? 'Attack_1' : asset === 'attack2' ? 'Attack_2' : asset === 'attack3' ? 'Attack_3' : asset.charAt(0).toUpperCase() + asset.slice(1);
       this.load.spritesheet(`player_${asset}`, `/images/assets/Fighter/${fileName}.png`, { frameWidth: 128, frameHeight: 128 });
       this.load.spritesheet(`enemy_${asset}`, `/images/assets/Shinobi/${fileName}.png`, { frameWidth: 128, frameHeight: 128 });
     });
 
+    // Load Samurai Ally assets
+    assets.forEach(asset => {
+      const fileName = asset === 'attack1' ? 'Attack_1' : asset === 'attack2' ? 'Attack_2' : asset === 'attack3' ? 'Attack_3' : asset.charAt(0).toUpperCase() + asset.slice(1);
+      this.load.spritesheet(`samurai_${asset}`, `/images/assets/Samurai/${fileName}.png`, { frameWidth: 128, frameHeight: 128 });
+    });
+
     for (let i = 1; i <= 4; i++) {
       this.load.image(`layer${i}`, `/images/assets/background/craftpix-net-139108-free-1-bit-graveyard-pixel-art-backgrounds/background%202/${i}.png`);
     }
+    this.load.svg('door', '/images/assets/door/door_spritesheet.svg');
   }
 
-   create() {
+  create() {
+    // Slicing up the chunk of images frame by frame 
+    const doorTex = this.textures.get('door');
+    if (doorTex && !doorTex.has(1)) {
+      doorTex.add(0, 0, 0, 0, 32, 32);
+      doorTex.add(1, 0, 32, 0, 32, 32);
+    }
+    
     createCharacterAnimations(this.anims);
     
-    // Parallax Backgrounds (Pinned to camera view)
     const screenW = this.scale.width;
     const screenH = this.scale.height;
 
-    this.bgLayer1 = this.add.tileSprite(0, 0, screenW, screenH, 'layer1').setOrigin(0, 0).setScrollFactor(0);
-    this.bgLayer2 = this.add.tileSprite(0, 0, screenW, screenH, 'layer2').setOrigin(0, 0).setScrollFactor(0);
-    this.bgLayer3 = this.add.tileSprite(0, 0, screenW, screenH, 'layer3').setOrigin(0, 0).setScrollFactor(0);
-    this.bgLayer4 = this.add.tileSprite(0, 0, screenW, screenH, 'layer4').setOrigin(0, 0).setScrollFactor(0);
+    const createBgLayer = (key) => {
+      const texture = this.textures.get(key).getSourceImage();
+      const scale = screenH / texture.height;
+      const tile = this.add.tileSprite(0, 0, screenW / scale, texture.height, key)
+        .setOrigin(0, 0)
+        .setScrollFactor(0)
+        .setScale(scale);
+      return tile;
+    };
 
-    // 1. Expand Physics & Camera World Bounds
+    this.bgLayer1 = createBgLayer('layer1');
+    this.bgLayer2 = createBgLayer('layer2');
+    this.bgLayer3 = createBgLayer('layer3');
+    this.bgLayer4 = createBgLayer('layer4');
+
+    // Physics & World Bounds
     this.physics.world.setBounds(0, 0, CONFIG.WORLD_WIDTH, CONFIG.WORLD_HEIGHT);
 
-    // Instantiate Player
+    // Instantiate Player and Ally
     this.player = new Player(this, 300, 450);
+    this.ally = new Ally(this, 200, 450);
     
-    // 2. Camera Follow
+    // Camera Follow & Bounds
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
     this.cameras.main.setBounds(0, 0, CONFIG.WORLD_WIDTH, CONFIG.WORLD_HEIGHT);
+
+    // Fence Barrier Configuration
+    const fenceY = 280; 
+    this.fenceBarrier = this.add.rectangle(CONFIG.WORLD_WIDTH / 2, fenceY, CONFIG.WORLD_WIDTH, 10, 0x00ff00, 0);
+    this.physics.add.existing(this.fenceBarrier, true);
 
     // Groups & Colliders
     this.enemies = this.physics.add.group();
     this.crystals = this.physics.add.group();
+    
     this.physics.add.overlap(this.player, this.crystals, this.collectCrystal, null, this);
     this.physics.add.collider(this.player, this.enemies);
+    this.physics.add.collider(this.ally, this.enemies);
+    this.physics.add.collider(this.player, this.ally);
+    
+    // Fence Colliders
+    this.physics.add.collider(this.player, this.fenceBarrier);
+    this.physics.add.collider(this.enemies, this.fenceBarrier);
+    this.physics.add.collider(this.ally, this.fenceBarrier);
 
     this.score = 0;
     this.spawnTimer = CONFIG.BASE_SPAWN_INTERVAL;
-    this.bloodPoints = 0;
-    this.maxBloodPoints = 100;
     this.stylePoints = 0;
     this.styleRank = 'D';
     this.styleMultiplier = 1;
+    this.doorSpawned = false;
+    this.isVictoryHandled = false;
 
     this.spawnEnemy();
     this.waveEvent = this.time.addEvent({
@@ -68,16 +108,14 @@ export default class GameScene extends Phaser.Scene {
       loop: true
     });
 
-    // 3. UI elements pinned to screen (setScrollFactor & setDepth)
+    // UI elements pinned to screen
     this.healthBarBg = this.add.graphics().setScrollFactor(0).setDepth(100);
     this.healthBar = this.add.graphics().setScrollFactor(0).setDepth(100);
-    this.bloodBarBg = this.add.graphics().setScrollFactor(0).setDepth(100);
-    this.bloodBar = this.add.graphics().setScrollFactor(0).setDepth(100);
 
     this.scoreText = this.add.text(570, 20, 'KILLS: 0', { font: '16px monospace', fill: '#ff5500', backgroundColor: '#111111', padding: { x: 6, y: 4 } }).setScrollFactor(0).setDepth(100);
     this.rankText = this.add.text(570, 52, 'STYLE: D (1.0x)', { font: '14px monospace', fill: '#00ffcc', backgroundColor: '#111111', padding: { x: 6, y: 4 } }).setScrollFactor(0).setDepth(100);
     
-    this.updatePlayerUI();
+    this.updateHealthBar();
 
     // Input Bindings
     this.keys = {
@@ -88,7 +126,6 @@ export default class GameScene extends Phaser.Scene {
     };
 
     this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.T).on('down', () => this.triggerPlayerAttack());
-    this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R).on('down', () => this.triggerBloodRage());
     this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT).on('down', () => this.player.triggerDash());
     this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE).on('down', () => this.player.triggerJump());
 
@@ -126,7 +163,6 @@ export default class GameScene extends Phaser.Scene {
     createButton(730, 530, 55, 55, 'ATK', () => this.triggerPlayerAttack());
     createButton(660, 530, 50, 50, 'JMP', () => this.player.triggerJump());
     createButton(730, 460, 50, 50, 'DSH', () => this.player.triggerDash());
-    createButton(660, 460, 50, 50, 'RGE', () => this.triggerBloodRage());
   }
 
   triggerHitStop(duration = 50) {
@@ -158,9 +194,9 @@ export default class GameScene extends Phaser.Scene {
   }
 
   collectCrystal(player, crystal) {
-    this.bloodPoints = Math.min(this.maxBloodPoints, this.bloodPoints + 25);
-    this.updateBloodBar();
-    this.spawnFloatingText(crystal.x, crystal.y, '+25 BLOOD!', '#00ffff');
+    this.player.health = Math.min(this.player.maxHealth, this.player.health + 25);
+    this.updateHealthBar();
+    this.spawnFloatingText(crystal.x, crystal.y, '+25 HP!', '#ff3333');
     crystal.destroy();
   }
 
@@ -183,42 +219,80 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  triggerBloodRage() {
-    if (this.player.isDead || this.player.isAttacking || this.player.isHurt || this.player.isDashing) return;
-    if (this.bloodPoints >= this.maxBloodPoints) {
-      this.bloodPoints = 0;
-      this.updateBloodBar();
-      this.player.isAttacking = true;
-      this.player.setVelocityX(0);
-      this.player.setTint(0xff0055);
-      this.player.play('player-attack3', true);
-      this.cameras.main.flash(250, 180, 0, 40);
-      this.triggerHitStop(80);
-
-      this.enemies.getChildren().forEach(enemy => {
-        if (!enemy.isDead && Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y) < CONFIG.BLOOD_RAGE_RANGE) {
-          this.handleEnemyHit(enemy, Math.round(50 * this.styleMultiplier));
-        }
-      });
-      this.time.delayedCall(400, () => this.player.clearTint());
-    }
-  }
-
   handleEnemyHit(enemy, damage) {
     const isDead = enemy.hurt(damage, this.player.x);
     this.triggerHitStop(40);
     this.updateStyleRank(15);
-    this.bloodPoints = Math.min(this.maxBloodPoints, this.bloodPoints + Math.round(10 * this.styleMultiplier));
-    this.updateBloodBar();
     this.spawnFloatingText(enemy.x, enemy.y, `-${damage}`, '#ffcc00');
 
     if (isDead) {
-      this.spawnBlueCrystal(enemy.x, enemy.y);
-      this.score += 1;
-      this.scoreText.setText(`KILLS: ${this.score}`);
-      this.updateStyleRank(35);
-      this.time.delayedCall(1500, () => enemy.destroy());
+      this.handleEnemyDeath(enemy);
     }
+  }
+
+  handleEnemyDeath(enemy) {
+    if (enemy.isScoreCounted) return;
+    enemy.isScoreCounted = true;
+
+    this.spawnBlueCrystal(enemy.x, enemy.y);
+    this.score += 1;
+    this.scoreText.setText(`KILLS: ${this.score}`);
+    
+    this.updateStyleRank(35);
+
+    // Check kill threshold for victory door (3 kills for both player and ally kills)
+    if (this.score >= 3 && !this.doorSpawned) {
+      this.doorSpawned = true;
+      this.spawnVictoryDoor();
+    }
+
+    this.time.delayedCall(1500, () => enemy.destroy());
+  }
+
+  spawnVictoryDoor() {
+    const doorX = this.player.x + 400; 
+    const doorY = 450; 
+
+    this.victoryDoor = this.physics.add.sprite(doorX, doorY, 'door');
+    this.victoryDoor.setScale(5.0);
+    this.victoryDoor.play('door_closed');
+    
+    if (this.victoryDoor.body) {
+      this.victoryDoor.body.setAllowGravity(false);
+    }
+    
+    this.tweens.add({
+      targets: this.victoryDoor,
+      scaleX: 5.3,
+      scaleY: 5.3,
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+    
+    this.spawnFloatingText(this.victoryDoor.x, this.victoryDoor.y - 60, 'PORTAL OPEN!', '#00ffcc');
+
+    this.physics.add.overlap(this.player, this.victoryDoor, () => {
+      this.handleVictory();
+    });
+  }
+
+  handleVictory() {
+    if (this.isVictoryHandled) return;
+    this.isVictoryHandled = true;
+
+    if (this.victoryDoor) {
+      this.victoryDoor.play('door_open');
+    }
+
+    this.spawnFloatingText(this.player.x, this.player.y - 40, 'LEVEL CLEARED!', '#00ffcc');
+    this.physics.world.timeScale = 0.5;
+
+    this.time.delayedCall(1500, () => {
+      this.physics.world.timeScale = 1.0;
+      this.scene.restart();
+    });
   }
 
   updateHealthBar() {
@@ -228,18 +302,7 @@ export default class GameScene extends Phaser.Scene {
     if (w > 0) this.healthBar.fillRect(30, 20, w, 16);
   }
 
-  updateBloodBar() {
-    this.bloodBarBg.clear().fillStyle(0x221122).fillRect(30, 42, 200, 10);
-    this.bloodBar.clear().fillStyle(this.bloodPoints >= this.maxBloodPoints ? 0xff00aa : 0x00aacc);
-    const w = (this.bloodPoints / this.maxBloodPoints) * 200;
-    if (w > 0) this.bloodBar.fillRect(30, 42, w, 10);
-  }
-
-  updatePlayerUI() {
-    this.updateHealthBar();
-    this.updateBloodBar();
-  }
- update(time, delta) {
+  update(time, delta) {
     if (this.player.isDead) return;
 
     if (this.stylePoints > 0) {
@@ -247,18 +310,22 @@ export default class GameScene extends Phaser.Scene {
       this.updateStyleRank(0);
     }
 
-    // Process player input/movement
     this.player.handleInput(null, this.keys);
+    this.ally.updateAI(this.player, this.enemies, this);
 
-    // Parallax background scrolling tied smoothly to camera movement
-    const scrollX = this.cameras.main.scrollX;
-    this.bgLayer1.tilePositionX = scrollX * 0.1;
-    this.bgLayer2.tilePositionX = scrollX * 0.3;
-    this.bgLayer3.tilePositionX = scrollX * 0.6;
-    this.bgLayer4.tilePositionX = scrollX * 1.0;
+    // Parallax scrolling
+    const px = this.player.x;
+    this.bgLayer1.tilePositionX = px * 0.1;
+    this.bgLayer2.tilePositionX = px * 0.3;
+    this.bgLayer3.tilePositionX = px * 0.6;
+    this.bgLayer4.tilePositionX = px * 1.0;
 
-    // Update Enemies
+    // Monitor enemy deaths from any source (including ally kills)
     this.enemies.getChildren().forEach(enemy => {
+      if (enemy.isDead && !enemy.isScoreCounted) {
+        this.handleEnemyDeath(enemy);
+      }
+
       enemy.updateAI(this.player, this, () => {
         const isDead = this.player.hurt(10);
         this.updateHealthBar();

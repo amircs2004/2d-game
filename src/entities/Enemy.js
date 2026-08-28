@@ -52,15 +52,11 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
       } else if (enemyAnim !== 'enemy-idle' && !enemyAnim?.startsWith('enemy-attack')) {
         this.play('enemy-idle', true);
       }
-    } else if (distance < 350) {
+    } else {
+      // Chase player continuously regardless of distance
       scene.physics.moveToObject(this, player, CONFIG.ENEMY_SPEED);
       if (enemyAnim !== 'enemy-run') {
         this.play('enemy-run', true);
-      }
-    } else {
-      this.setVelocity(0, 0);
-      if (enemyAnim !== 'enemy-idle') {
-        this.play('enemy-idle', true);
       }
     }
   }

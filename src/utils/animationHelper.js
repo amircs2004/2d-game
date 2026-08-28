@@ -1,5 +1,5 @@
 export function createCharacterAnimations(anims) {
-  // 1. Idle
+  // --- PLAYER ANIMATIONS ---
   anims.create({
     key: 'player-idle',
     frames: anims.generateFrameNumbers('player_idle', { start: 0, end: 7 }),
@@ -7,7 +7,6 @@ export function createCharacterAnimations(anims) {
     repeat: -1
   });
 
-  // 2. Walk
   anims.create({
     key: 'player-walk',
     frames: anims.generateFrameNumbers('player_walk', { start: 0, end: 7 }),
@@ -15,7 +14,6 @@ export function createCharacterAnimations(anims) {
     repeat: -1
   });
 
-  // 3. Run
   anims.create({
     key: 'player-run',
     frames: anims.generateFrameNumbers('player_run', { start: 0, end: 7 }),
@@ -23,7 +21,6 @@ export function createCharacterAnimations(anims) {
     repeat: -1
   });
 
-  // 4. Jump
   anims.create({
     key: 'player-jump',
     frames: anims.generateFrameNumbers('player_jump', { start: 0, end: 7 }),
@@ -31,7 +28,6 @@ export function createCharacterAnimations(anims) {
     repeat: 0
   });
 
-  // 5. Attacks (1, 2, and 3)
   anims.create({
     key: 'player-attack1',
     frames: anims.generateFrameNumbers('player_attack1', { start: 0, end: 5 }),
@@ -53,7 +49,6 @@ export function createCharacterAnimations(anims) {
     repeat: 0
   });
 
-  // 6. Shield / Guard
   anims.create({
     key: 'player-shield',
     frames: anims.generateFrameNumbers('player_shield', { start: 0, end: 3 }),
@@ -61,7 +56,6 @@ export function createCharacterAnimations(anims) {
     repeat: -1
   });
 
-  // 7. Hurt
   anims.create({
     key: 'player-hurt',
     frames: anims.generateFrameNumbers('player_hurt', { start: 0, end: 3 }),
@@ -69,7 +63,6 @@ export function createCharacterAnimations(anims) {
     repeat: 0
   });
 
-  // 8. Dead
   anims.create({
     key: 'player-dead',
     frames: anims.generateFrameNumbers('player_dead', { start: 0, end: 5 }),
@@ -77,6 +70,7 @@ export function createCharacterAnimations(anims) {
     repeat: 0
   });
 
+  // --- ENEMY ANIMATIONS ---
   anims.create({
     key: 'enemy-idle',
     frames: anims.generateFrameNumbers('enemy_idle', { start: 0, end: 7 }),
@@ -105,7 +99,6 @@ export function createCharacterAnimations(anims) {
     repeat: 0
   });
 
-  // --- FIXED: Changed end from 5 to 3 to match 4-frame enemy attack sheets ---
   anims.create({
     key: 'enemy-attack1',
     frames: anims.generateFrameNumbers('enemy_attack1', { start: 0, end: 3 }),
@@ -145,6 +138,70 @@ export function createCharacterAnimations(anims) {
     key: 'enemy-dead',
     frames: anims.generateFrameNumbers('enemy_dead', { start: 0, end: 5 }),
     frameRate: 10,
+    repeat: 0
+  });
+
+  // --- SAMURAI ALLY ANIMATIONS ---
+  anims.create({
+    key: 'samurai-idle',
+    frames: anims.generateFrameNumbers('samurai_idle', { start: 0, end: 3 }),
+    frameRate: 8,
+    repeat: -1
+  });
+
+  anims.create({
+    key: 'samurai-run',
+    frames: anims.generateFrameNumbers('samurai_run', { start: 0, end: 7 }),
+    frameRate: 10,
+    repeat: -1
+  });
+
+  anims.create({
+    key: 'samurai-attack1',
+    frames: anims.generateFrameNumbers('samurai_attack1', { start: 0, end: 5 }),
+    frameRate: 12,
+    repeat: 0
+  });
+
+  anims.create({
+    key: 'samurai-attack2',
+    frames: anims.generateFrameNumbers('samurai_attack2', { start: 0, end: 5 }),
+    frameRate: 12,
+    repeat: 0
+  });
+
+  anims.create({
+    key: 'samurai-attack3',
+    frames: anims.generateFrameNumbers('samurai_attack3', { start: 0, end: 5 }),
+    frameRate: 12,
+    repeat: 0
+  });
+
+  anims.create({
+    key: 'samurai-hurt',
+    frames: anims.generateFrameNumbers('samurai_hurt', { start: 0, end: 1 }),
+    frameRate: 8,
+    repeat: 0
+  });
+
+  anims.create({
+    key: 'samurai-dead',
+    frames: anims.generateFrameNumbers('samurai_dead', { start: 0, end: 3 }),
+    frameRate: 8,
+    repeat: 0
+  });
+
+  anims.create({
+    key: 'door_closed',
+    frames: [{ key: 'door', frame: 0 }],
+    frameRate: 1,
+    repeat: 0
+  });
+
+  anims.create({
+    key: 'door_open',
+    frames: [{ key: 'door', frame: 1 }],
+    frameRate: 1,
     repeat: 0
   });
 }
